@@ -26,7 +26,6 @@ public class ServerStart {
 		//监听客户端连接
 		new Thread(myAceptThread).start();	
 
-
 	}
 	
 		
