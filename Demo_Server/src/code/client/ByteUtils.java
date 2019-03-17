@@ -49,9 +49,7 @@ public class ByteUtils {
     		
     		sb.append(bs);
     		
-    	}
-    	
-    	
+    	}   	
     	return sb.toString();
     }
 
@@ -162,5 +160,40 @@ public class ByteUtils {
         System.arraycopy(src, begin, bs, 0, count);
         return bs;
     }
+    
+    public static byte[] hexStringToBytes(String hexString) {
+        if (hexString == null || hexString.equals("")) {
+            return null;
+        }
+        // toUpperCase将字符串中的所有字符转换为大写
+        hexString = hexString.toUpperCase();
+        int length = hexString.length() / 2;
+        // toCharArray将此字符串转换为一个新的字符数组。
+        char[] hexChars = hexString.toCharArray();
+        byte[] d = new byte[length];
+        for (int i = 0; i < length; i++) {
+            int pos = i * 2;
+            d[i] = (byte) (charToByte(hexChars[pos]) << 4 | charToByte(hexChars[pos + 1]));
+        }
+        return d;
+    }
+
+	private static byte charToByte(char c) {
+	    return (byte) "0123456789ABCDEF".indexOf(c);
+	}
+
+	//INt类型转bytes类型
+    public static byte[] Int2Bytes(int Inte)
+    {
+            byte[] bytes=new byte[4];
+
+            bytes[3]=(byte) (Inte>>24);
+            bytes[2]=(byte) (Inte>>16);
+            bytes[1]=(byte) (Inte>>8);
+            bytes[0]=(byte)Inte;
+
+            return bytes;
+    }
+
 
 }

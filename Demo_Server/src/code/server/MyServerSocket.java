@@ -6,6 +6,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -21,6 +22,7 @@ public class MyServerSocket {
 	private int port;
 	private Socket mySocket = null;
 	private static ArrayList<Socket> mySocketList = new ArrayList<Socket>();
+	private static boolean flagAllDatFeedback = false;
 	
 	public MyServerSocket(ServerSocket myServerSocket, Socket mySocket, int port)
 	{
@@ -51,6 +53,10 @@ public class MyServerSocket {
 			RevMsgThread myRevMsgThread = new RevMsgThread(mySocket);
 			myRevMsgThread.start();
 			
+//			//发送消息->用于公司测试
+//			SendMsgThread mySndThread = new SendMsgThread(mySocket);
+//			mySndThread.start();
+			
 		}
 		catch(Exception ex){
 			System.out.println("监听出现异常：" + ex);
@@ -63,35 +69,37 @@ public class MyServerSocket {
         String ret = null;
         InputStream is = mySocket.getInputStream();
         int bufLen = 0;
-        byte[] bufer = new byte[512];
+        byte[] bufer = new byte[40000];
 
         try {        	
 	        //从标准输入读入一字符串       	
-	        while( (bufLen = is.read(bufer)) != -1) {
+	        while((bufLen = is.read(bufer)) != -1) {
 	        	
 	        	ret = ByteUtils.ByteArraytoHex(bufer, bufLen);
-//	        	byte[] bytes = {0x01, 0x01, 0x00, 0x02};
-//	        	int hh = MyCRC16.ModBusCRC16(bytes, 4);
-//	        	System.out.println("CRC16:" + Integer.toHexString(hh));
 	        	byte[] turnBuf = ColData(bufer, bufLen);
 	            System.out.println("Client:" + ret + bufLen + " ListSize:" + mySocketList.size());
-	        	//通过广播的形式转发
-	            if(turnBuf[bufLen -1] == (byte)0xEE && turnBuf[bufLen - 2] == (byte)0xDD) {
-//	            	System.out.println("INBread");
-		        	if(mySocketList.size() > 1) {
-			        	for(Socket socket : mySocketList) {
-			        		if(socket.equals(mySocket) == false) {
-			        			socket.getOutputStream().write(turnBuf, 0, bufLen);
-			        			socket.getOutputStream().flush();
-			        		}
-			        	}	        		
-		        	}		            	
+	            //进行解析之后再转发
+	            if(flagAllDatFeedback != true) {
+		        	//通过广播的形式转发
+		            if(turnBuf[bufLen -1] == (byte)0xEE && turnBuf[bufLen - 2] == (byte)0xDD) {
+			        	if(mySocketList.size() > 1) {
+		        				RetSocketDat(mySocket, turnBuf, bufLen);
+			        			System.out.println("MyServerForwarding");
+				        	}	        				            	
+		            }
+		            else
+		            {
+		            	System.out.println("MyServerNotForwarding");
+		            }	            	
 	            }
-	            else
+	            else	//升级使用 直接转发所有数据 
 	            {
-	            	System.out.println("MyServerNotForwarding");
-	            }
-            	
+	            	if(mySocketList.size() > 1) {
+	            			RetSocketDat(mySocket, bufer, bufLen);
+			        		System.out.println("MyServerForwardingUpdateBegin");
+			        	}	        			           	            	
+	            }     
+	            
 	        	Arrays.fill(turnBuf, (byte)0);		//清空数组
 	            Arrays.fill(bufer, (byte)0);		//清空数组
 	            bufLen = 0;
@@ -105,6 +113,24 @@ public class MyServerSocket {
         }
 	}
 	
+	//服务器消息发送
+	public static void SendMsg(Socket mySocket, byte[] sendBytes) throws IOException {
+		try {
+			OutputStream outputStream = mySocket.getOutputStream();	
+
+			outputStream.write(sendBytes);
+			
+			outputStream.flush();		
+
+		}
+		catch(Exception ex) {
+			ex.printStackTrace();
+			mySocket.close();
+		}
+
+	}	
+	
+	//关闭服务器
 	public void SocketCLose(ServerSocket myServerSocket, Socket mySocket) {
 		try {
 			myServerSocket.close();
@@ -117,29 +143,52 @@ public class MyServerSocket {
 		
 	}
 	
+	//判断校验是否正确
 	private static byte[] ColData(byte[] buf, int len) { 
 		byte[] ret = new byte[len];
 		if(buf[len - 1] == (byte)0xEE && buf[len - 2] == (byte)0xDD) {
-//			System.out.println("InBread");
 			int ncrc = MyCRC16.ModBusCRC16(buf, len - 4);
-//			System.out.println("nCRC:" + ncrc + "YuanCRC:" + (int)(buf[len - 4] << 8) +" "+ (int)buf[len - 3]);
+			byte[] tmp = ByteUtils.Int2Bytes(ncrc);
+			for(byte t:tmp) {
+				System.out.println(t);
+			}
+//			System.out.println("NCRC: " + ncrc);
+//			System.out.println("ncrc_L: " + (byte)((ncrc >> 8) & 0xFF));
+//			System.out.println("CRC_L: " + buf[len - 4]);
+//			System.out.println("ncrc_H: " + (byte)(ncrc & 0xFF));
+//			System.out.println("CRC_H: " + buf[len - 3]);
 			//CRC校验比较
-			if((byte)((ncrc >> 8) & (0xFF)) == buf[len - 4] && (byte)(ncrc & 0xFF) ==  buf[len - 3]) {
-//				System.out.println("校验成功");
-				if(buf[0] == 0x01) {
-					buf[0] = 0x02;
+			if((byte)((ncrc >> 8) & 0xFF) == buf[len - 4] && (byte)(ncrc & 0xFF) == buf[len - 3]) {
+				//开始升级指令 ->(网页发送所有数据全部转发)
+				//System.out.println("BreadIn");
+				if(buf[1] == (byte)0xAE) {
+					flagAllDatFeedback = true;
+					System.out.println("BeginUpdata");
 				}
-				else if(buf[0] == 0x02) {
-					buf[0] = 0x01;
+				//结束升级指令->(网页发送结束数据转发恢复)
+				if(buf[1] == (byte)0xAF) {
+					flagAllDatFeedback = false;
+					System.out.println("EndUpdata");
 				}
-				ncrc = MyCRC16.ModBusCRC16(buf, len - 4);
-				buf[len - 4] = (byte)((ncrc >> 8) & 0xFF);
-				buf[len - 3] = (byte)(ncrc & 0xFF);
+				
+				//如果校验正确，直接进行转发
 				ret = buf;
 			}
 		}	
 		return ret;
 	}
+
+	//数据转发
+	private static void RetSocketDat(Socket mySocket, byte[] buf, int len) throws IOException {
+		
+    	for(Socket socket : mySocketList) {
+    		if(socket.equals(mySocket) == false) {
+    			socket.getOutputStream().write(buf, 0, len);
+    			socket.getOutputStream().flush();
+    		}
+    	}	
+	}
+	
 	
 	
 }

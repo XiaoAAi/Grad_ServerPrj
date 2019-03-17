@@ -1,9 +1,11 @@
 package code.client;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.Arrays;
+import java.util.Scanner;
 
 public class MyClient {
 
@@ -21,7 +23,7 @@ public class MyClient {
 	public void CreateClient() {
 		try {
 			mySocket = new Socket(host, port);
-			System.out.println("连接成功");
+			System.out.println("连接到服务器" + host);
 			RevMsgThread revThread = new RevMsgThread(mySocket);
 			revThread.start();
 			SendMsgThread sendMsgThread = new SendMsgThread(mySocket);
@@ -33,17 +35,26 @@ public class MyClient {
 	}
 	
 	//客户端消息发送
-	public static void SendMsg(Socket mySocket, byte[] sendBytes) {
+	public static void SendMsg(Socket mySocket, byte[] sendBytes) throws IOException {
 		try {
-			OutputStream outputStream = mySocket.getOutputStream();	
-
-			outputStream.write(sendBytes);
+			@SuppressWarnings("resource")
+			Scanner sc = new Scanner(System.in);
 			
-			outputStream.flush();		
-
+			String read = sc.next();
+			System.out.println(read);
+			if(read != null) {
+				byte[] buf = ByteUtils.hexStringToBytes(read);
+				OutputStream outputStream = mySocket.getOutputStream();	
+				outputStream.write(buf);			
+				outputStream.flush();
+				
+				Arrays.fill(buf,(byte)0);
+				System.out.println("发送成功");				
+			}
 		}
 		catch(Exception ex) {
 			ex.printStackTrace();
+			mySocket.close();
 		}
 
 	}

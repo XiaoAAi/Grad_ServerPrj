@@ -76,9 +76,6 @@ public class ByteUtils {
         }else {
             return result;
         }
-
-
-
 //        return Integer.toHexString(a).toUpperCase();
     }
 
@@ -106,7 +103,17 @@ public class ByteUtils {
     }
 
 
+    public static byte[] Int2Bytes(int integer)
+    {
+            byte[] bytes=new byte[4];
 
+            bytes[3]=(byte) ((byte)integer>>24);
+            bytes[2]=(byte) ((byte)integer>>16);
+            bytes[1]=(byte) ((byte)integer>>8);
+            bytes[0]=(byte)integer;
+
+            return bytes;
+    }
 
 
     /**

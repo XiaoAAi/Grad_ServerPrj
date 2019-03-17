@@ -1,0 +1,9 @@
+//用于后台启动
+nohup java -jar Server8888.jar &
+//可以动态查看Log日志
+tail -f nohup.out
+//可以查看jar包运行的线程
+ps -ef|grep jar
+//杀死进程
+kill -9 （->对应的第一个程序标号  （第二个为用户名编号））
+//就算是使用nohup java -jar Server8888.jar 同样的可以通过上面的方式进行杀死结束他
