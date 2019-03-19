@@ -1,21 +1,22 @@
 package code.server;
 
-import java.awt.geom.FlatteningPathIterator;
-import java.io.BufferedReader;
-import java.io.DataInputStream;
+
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.Date;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+
 
 import code.client.ByteUtils;
 
 
-@SuppressWarnings("unused")
+
 public class MyServerSocket {
 
 	private ServerSocket myServerSocket = null;
@@ -41,7 +42,7 @@ public class MyServerSocket {
 	}
 	
 	//连接客户端
-	public void MySocketAccept() {
+	public void MySocketAccept(){
 		try {
 			mySocket = new Socket();
 			System.out.println("服务器端一直进行监听 Client");
@@ -149,9 +150,7 @@ public class MyServerSocket {
 		if(buf[len - 1] == (byte)0xEE && buf[len - 2] == (byte)0xDD) {
 			int ncrc = MyCRC16.ModBusCRC16(buf, len - 4);
 			byte[] tmp = ByteUtils.Int2Bytes(ncrc);
-			for(byte t:tmp) {
-				System.out.println(t);
-			}
+			
 //			System.out.println("NCRC: " + ncrc);
 //			System.out.println("ncrc_L: " + (byte)((ncrc >> 8) & 0xFF));
 //			System.out.println("CRC_L: " + buf[len - 4]);
@@ -166,11 +165,25 @@ public class MyServerSocket {
 					System.out.println("BeginUpdata");
 				}
 				//结束升级指令->(网页发送结束数据转发恢复)
-				if(buf[1] == (byte)0xAF) {
+				else if(buf[1] == (byte)0xAF) {
 					flagAllDatFeedback = false;
 					System.out.println("EndUpdata");
 				}
-				
+				//心跳包 存储温湿度值到数据库
+				else if(buf[1] == (byte)0x0B) {
+					MySqlServer sqlServer = new MySqlServer();
+					int tem = ((buf[2] & 0xFF) << 8 | (buf[3] & 0xFF));
+					int hum = ((buf[4] & 0xFF) << 8 | (buf[5] & 0xFF));
+					long lt = System.currentTimeMillis();
+					Date date = new Date(lt);
+					DateFormat simpleDateFormate = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss");
+					
+					String sql = "INSERT INTO temhum_tbl (temhum_tem,temhum_hum,submit_date) VALUES ('" 
+										+ tem + "','" + hum + "','" + simpleDateFormate.format(date) + "');";
+
+					sqlServer.executeUpdate(sql);
+					sqlServer.closeConnection();		//断开数据库连接		
+				}
 				//如果校验正确，直接进行转发
 				ret = buf;
 			}
