@@ -112,6 +112,11 @@ public class MyServerSocket {
         	mySocketList.remove(mySocket);
         	mySocket.close();
         }
+        catch(NullPointerException ex) {
+        	System.out.println("Client IP:" + mySocket.getRemoteSocketAddress() + "已断开");
+        	mySocketList.remove(mySocket);
+        	mySocket.close();        	
+        }
 	}
 	
 	//服务器消息发送
@@ -145,12 +150,10 @@ public class MyServerSocket {
 	}
 	
 	//判断校验是否正确
-	private static byte[] ColData(byte[] buf, int len) { 
+	private static byte[] ColData(byte[] buf, int len) throws NullPointerException{ 
 		byte[] ret = new byte[len];
 		if(buf[len - 1] == (byte)0xEE && buf[len - 2] == (byte)0xDD) {
-			int ncrc = MyCRC16.ModBusCRC16(buf, len - 4);
-			byte[] tmp = ByteUtils.Int2Bytes(ncrc);
-			
+			int ncrc = MyCRC16.ModBusCRC16(buf, len - 4);	
 //			System.out.println("NCRC: " + ncrc);
 //			System.out.println("ncrc_L: " + (byte)((ncrc >> 8) & 0xFF));
 //			System.out.println("CRC_L: " + buf[len - 4]);
@@ -176,7 +179,7 @@ public class MyServerSocket {
 					int hum = ((buf[4] & 0xFF) << 8 | (buf[5] & 0xFF));
 					long lt = System.currentTimeMillis();
 					Date date = new Date(lt);
-					DateFormat simpleDateFormate = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss");
+					DateFormat simpleDateFormate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 					
 					String sql = "INSERT INTO temhum_tbl (temhum_tem,temhum_hum,submit_date) VALUES ('" 
 										+ tem + "','" + hum + "','" + simpleDateFormate.format(date) + "');";

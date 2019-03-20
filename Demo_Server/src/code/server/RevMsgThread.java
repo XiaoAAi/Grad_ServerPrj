@@ -13,7 +13,7 @@ public class RevMsgThread extends Thread{
 			MyServerSocket.SocketRevMsg(mySocket);
 		}
 		catch(Exception ex) {
-//			ex.printStackTrace();
+			ex.printStackTrace();
 			System.out.println("消息接收异常" + ex);
 		}
 		

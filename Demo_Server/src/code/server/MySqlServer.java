@@ -12,7 +12,9 @@ public class MySqlServer {
 
 	static java.sql.Connection conn;
     private final String dbDrive="com.mysql.jdbc.Driver";
+//    private final String url = "jdbc:mysql://127.0.0.1:3306/GRA_DATA";			//应该也是可以的
     private final String url = "jdbc:mysql://120.78.79.152:3306/GRA_DATA";
+//    private final String url = "jdbc:mysql://localhost:3306/GRA_DATA";			//同样是可以的
     private final String userName = "root";
     private final String password = "123";
     private Connection con = null;
@@ -23,6 +25,7 @@ public class MySqlServer {
             Class.forName(dbDrive).newInstance(); 
         } catch (Exception ex) {
             System.out.println("数据库加载失败");
+            ex.printStackTrace();
         }
     }
     
@@ -39,7 +42,7 @@ public class MySqlServer {
     }
 
     //对数据库的增加、修改和删除的操作
-    public boolean executeUpdate(String sql) {
+    public boolean executeUpdate(String sql) throws NullPointerException{
          if (con == null) {
             creatConnection();
         }
@@ -77,7 +80,7 @@ public class MySqlServer {
     
     //关闭数据库
     public void  closeConnection(){
-        if(con==null){
+        if(con == null){
             try {
                 con.close();
             } catch (SQLException e) {
