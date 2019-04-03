@@ -28,7 +28,13 @@ public class ServerStart {
 		//创建ServerSocket服务端
 		serverSocket.createServerSocket();
 		//监听客户端连接
-		new Thread(myAceptThread).start();	
+		new Thread(myAceptThread).start();
+		
+		//每2s监听数据库信息 进行数据发送
+		MysqlAnalysisThread msT = new MysqlAnalysisThread();
+		msT.start();
+//		MyServerSocket.SelectAndUpdateMysqlDate();
+//		System.out.println("end");
 
 	}
 	

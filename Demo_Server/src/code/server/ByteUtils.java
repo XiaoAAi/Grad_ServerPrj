@@ -141,7 +141,7 @@ public class ByteUtils {
         return b;
     }
 
-
+    //合并两个数组
     public static byte[] byteMerger(byte[] byte_1, byte[] byte_2){
         byte[] byte_3 = new byte[byte_1.length+byte_2.length];
         System.arraycopy(byte_1, 0, byte_3, 0, byte_1.length);
@@ -169,5 +169,8 @@ public class ByteUtils {
         System.arraycopy(src, begin, bs, 0, count);
         return bs;
     }
+    
+
+
 
 }

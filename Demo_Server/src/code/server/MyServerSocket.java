@@ -23,7 +23,7 @@ public class MyServerSocket {
 	private int port;
 	private Socket mySocket = null;
 	private static ArrayList<Socket> mySocketList = new ArrayList<Socket>();
-	private static boolean flagAllDatFeedback = false;
+//	private static boolean flagAllDatFeedback = false;
 	
 	public MyServerSocket(ServerSocket myServerSocket, Socket mySocket, int port)
 	{
@@ -233,16 +233,146 @@ public class MyServerSocket {
 			}		
 		}				
 	}
+
+	//处理前端发送给数据库的字符串命令
+	public static void HtmlStringAnalysis() throws InterruptedException, IOException {
+		while(true){
+			Thread.sleep(2000);
+			SelectAndUpdateMysqlDate();
+			System.out.println("SelectMysqlOpreation");
+		}
+	}
+
+	//数据库查询及清除指令
+	private static void SelectAndUpdateMysqlDate() throws IOException {
+		LightCmd();
+		LockCmd();	
+		FanCmd();
+		SendMsgOled();
+		RebootBottom();
+	}
 	
+	//灯的发送指令
+	private static void LightCmd() throws IOException {
+		MySqlServer sqlServer = new MySqlServer();
+		String sql = "select command from controller_tbl where id='light';";
+		String strCmp = sqlServer.executeStringQuery(sql);
+		if(strCmp.equals("openlight")) {
+			byte buf[] = {0x01, 0x01, 0x00, 0x02, (byte)0xD1, (byte)0xD9, (byte)0xDD, (byte)0xEE};
+			RetSocketDat(buf, 8);
+			System.out.println("发送打开灯指令");
+		}
+		else if(strCmp.equals("closelight")) {
+			byte buf[] = {0x01, 0x02, 0x00, 0x02, (byte)0x21, (byte)0xD9, (byte)0xDD, (byte)0xEE};
+			RetSocketDat(buf, 8);			
+			System.out.println("发送关灯指令");
+		}
+		sql = "update controller_tbl set command='' where id='light';";				
+		sqlServer.executeUpdate(sql);
+		
+		sqlServer.closeConnection();		//断开数据库连接	
+	}
+	//电磁锁的发送指令
+	private static void LockCmd() throws IOException {	
+		
+		MySqlServer sqlServer = new MySqlServer();
+		//电磁锁的发送指令
+		String sql = "select command from controller_tbl where id='lock';";
+		String strCmp = sqlServer.executeStringQuery(sql);
+		if(strCmp.equals("openlock")) {
+			byte buf[] = {0x01, 0x04, 0x00, 0x02, (byte)0xC1, (byte)0xD8, (byte)0xDD, (byte)0xEE};
+			RetSocketDat(buf, 8);			
+			System.out.println("发送开锁指令");
+		}
+		else if(strCmp.equals("closelock")) {
+			System.out.println("发送关锁指令");
+		}
+		sql = "update controller_tbl set command='' where id='lock';";				
+		sqlServer.executeUpdate(sql);
+		
+		sqlServer.closeConnection();		//断开数据库连接	
+	}
+	
+	//电风扇的指令发送
+	private static void FanCmd() throws IOException {
+		MySqlServer sqlServer = new MySqlServer();
+		//电风扇的发送指令
+		String sql = "select command from controller_tbl where id='fan';";
+		String strCmp = sqlServer.executeStringQuery(sql);
+		if(strCmp.equals("openfan")) {
+			byte buf[] = {0x01, 0x05, 0x00, 0x02, (byte)0x90, (byte)0x18, (byte)0xDD, (byte)0xEE};
+			RetSocketDat(buf, 8);			
+			System.out.println("发送开风扇指令指令");
+		}
+		else if(strCmp.equals("closefan")) {
+			byte buf[] = {0x01, 0x06, 0x00, 0x02, (byte)0x60, (byte)0x18, (byte)0xDD, (byte)0xEE};
+			RetSocketDat(buf, 8);
+			System.out.println("发送关风扇指令指令");
+		}
+		sql = "update controller_tbl set command='' where id='fan';";				
+		sqlServer.executeUpdate(sql);	
+		
+		sqlServer.closeConnection();		//断开数据库连接	
+	}
+	
+	//发送消息显示在OLED显示屏指令
+	private static void SendMsgOled() throws IOException {
+		MySqlServer sqlServer = new MySqlServer();
+		
+		String sql = "select command from controller_tbl where id='msg';";
+		String strCmp = sqlServer.executeStringQuery(sql);
+		if(strCmp.equals("sendmsg")) {
+			//获取发送的内容数据
+			sql = "select content from controller_tbl where id='msg';";
+			strCmp = sqlServer.executeStringQuery(sql);
+			byte buf[] = {0x01, 0x07};			
+			byte retBuf[] = ByteUtils.byteMerger(buf, strCmp.getBytes());
+			int len = retBuf.length;
+			buf[0] = 0x00;
+			buf[1] = (byte)len;
+			retBuf = ByteUtils.byteMerger(retBuf, buf);
+			int ncrc = MyCRC16.ModBusCRC16(retBuf, (len + 2));
+			byte[] bytcrc = {(byte)((ncrc >> 8) & 0xFF), (byte)(ncrc & 0xFF), (byte)0xDD, (byte)0xEE};
+			retBuf = ByteUtils.byteMerger(retBuf, bytcrc);
+//			for(int i = 0; i<retBuf.length; i++) {
+//				System.out.printf("%02X\\n", retBuf[i]);
+//			};
+			RetSocketDat(retBuf, retBuf.length);			
+			System.out.println("发送消息到OLED数据" + strCmp);
+			sql = "update controller_tbl set content='' where id='msg';";				
+			sqlServer.executeUpdate(sql);
+		}
+		sql = "update controller_tbl set command='' where id='msg';";				
+		sqlServer.executeUpdate(sql);
+		
+		sqlServer.closeConnection();		//断开数据库连接
+	}
+
+	//发送重启底层指令
+	private static void RebootBottom() throws IOException {
+		MySqlServer sqlServer = new MySqlServer();
+		//发送底层重启指令
+		String sql = "select command from controller_tbl where id='reboot';";
+		String strCmp = sqlServer.executeStringQuery(sql);
+		if(strCmp.equals("rebottom")) {
+			byte buf[] = {0x01, 0x0E, 0x00, 0x02, (byte)0xE1, (byte)0xDA, (byte)0xDD, (byte)0xEE};
+			RetSocketDat(buf, 8);
+			System.out.println("发送底层重启指令");
+		}
+		sql = "update controller_tbl set command='' where id='reboot';";				
+		sqlServer.executeUpdate(sql);		
+
+		sqlServer.closeConnection();		//断开数据库连接			
+	}
+
+
 	
 	//数据转发
-	private static void RetSocketDat(Socket mySocket, byte[] buf, int len) throws IOException {
+	private static void RetSocketDat( byte[] buf, int len) throws IOException {
 		
     	for(Socket socket : mySocketList) {
-    		if(socket.equals(mySocket) == false) {
-    			socket.getOutputStream().write(buf, 0, len);
-    			socket.getOutputStream().flush();
-    		}
+			socket.getOutputStream().write(buf, 0, len);
+			socket.getOutputStream().flush();
     	}	
 	}
 	

@@ -13,8 +13,8 @@ public class MySqlServer {
 	static java.sql.Connection conn;
     private final String dbDrive="com.mysql.jdbc.Driver";
 //    private final String url = "jdbc:mysql://127.0.0.1:3306/GRA_DATA";			//应该也是可以的
-//    private final String url = "jdbc:mysql://localhost:3306/GRA_DATA";
-    private final String url = "jdbc:mysql://120.78.79.152:3306/GRA_DATA";			//同样是可以的
+    private final String url = "jdbc:mysql://localhost:3306/GRA_DATA";
+//    private final String url = "jdbc:mysql://120.78.79.152:3306/GRA_DATA";			//同样是可以的
     private final String userName = "root";
     private final String password = "123";
     private Connection con = null;
@@ -48,8 +48,9 @@ public class MySqlServer {
         }
         try {
             Statement stmt = (Statement) con.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,ResultSet.CONCUR_READ_ONLY);
-            int iCount = stmt.executeUpdate(sql);
-            System.out.println("操作成功，所影响的记录数为" + String.valueOf(iCount));
+            stmt.executeUpdate(sql);
+//            int iCount = stmt.executeUpdate(sql);
+//            System.out.println("操作成功，所影响的记录数为" + String.valueOf(iCount));
             return true;
         } catch (SQLException e) {
             System.out.println(e.getMessage());
@@ -77,6 +78,32 @@ public class MySqlServer {
         }
         return rs;
     }
+ 
+    //对数据库进行查询操作 返回String字符串
+    public String executeStringQuery(String sql) {
+        String ret = "";
+        try {
+            if (con == null) {
+                creatConnection();
+            }
+            Statement stmt = (Statement) con.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE,ResultSet.CONCUR_READ_ONLY);
+            try {
+            	ResultSet rs = stmt.executeQuery(sql);
+            	while(rs.next()) {
+            		ret = rs.getString(1);
+            	}
+            } catch (SQLException e) {
+                System.out.println(e.getMessage());
+                return null;
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            System.out.println("executeQueryError!");
+            return null;
+        }
+        return ret;
+    }
+    
     
     //关闭数据库
     public void  closeConnection(){
