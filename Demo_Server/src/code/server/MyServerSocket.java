@@ -77,31 +77,8 @@ public class MyServerSocket {
 	        while((bufLen = is.read(bufer)) != -1) {
 	        	
 	        	ret = ByteUtils.ByteArraytoHex(bufer, bufLen);
-	        	byte[] turnBuf = ColData(bufer, bufLen);
-	            System.out.println("Client:" + ret + bufLen + " ListSize:" + mySocketList.size());
-	            //进行解析之后再转发
-	            if(flagAllDatFeedback != true) {
-		        	//通过广播的形式转发
-		            if(turnBuf[bufLen -1] == (byte)0xEE && turnBuf[bufLen - 2] == (byte)0xDD) {
-			        	if(mySocketList.size() > 1) {
-		        				RetSocketDat(mySocket, turnBuf, bufLen);
-			        			System.out.println("MyServerForwarding");
-				        	}	        				            	
-		            }
-		            else
-		            {
-		            	System.out.println("MyServerNotForwarding");
-		            }	            	
-	            }
-	            else	//升级使用 直接转发所有数据 
-	            {
-	            	if(mySocketList.size() > 1) {
-	            			RetSocketDat(mySocket, bufer, bufLen);
-			        		System.out.println("MyServerForwardingUpdateBegin");
-			        	}	        			           	            	
-	            }     
-	            
-	        	Arrays.fill(turnBuf, (byte)0);		//清空数组
+	        	ColData(bufer, bufLen);
+	            System.out.println("Client:" + ret + "  NumLen:" + bufLen + "  ListSize:" + mySocketList.size());
 	            Arrays.fill(bufer, (byte)0);		//清空数组
 	            bufLen = 0;
 	        }
@@ -144,36 +121,38 @@ public class MyServerSocket {
 		}
 		catch(Exception ex) {
 			System.out.println("关闭套接字异常：" + ex);
-		}
-
-		
+		}		
 	}
 	
 	//判断校验是否正确
-	private static byte[] ColData(byte[] buf, int len) throws NullPointerException{ 
-		byte[] ret = new byte[len];
+	private static void ColData(byte[] buf, int len) throws NullPointerException{ 
 		if(buf[len - 1] == (byte)0xEE && buf[len - 2] == (byte)0xDD) {
 			int ncrc = MyCRC16.ModBusCRC16(buf, len - 4);	
-//			System.out.println("NCRC: " + ncrc);
-//			System.out.println("ncrc_L: " + (byte)((ncrc >> 8) & 0xFF));
-//			System.out.println("CRC_L: " + buf[len - 4]);
-//			System.out.println("ncrc_H: " + (byte)(ncrc & 0xFF));
-//			System.out.println("CRC_H: " + buf[len - 3]);
 			//CRC校验比较
 			if((byte)((ncrc >> 8) & 0xFF) == buf[len - 4] && (byte)(ncrc & 0xFF) == buf[len - 3]) {
 				//开始升级指令 ->(网页发送所有数据全部转发)
-				//System.out.println("BreadIn");
-				if(buf[1] == (byte)0xAE) {
-					flagAllDatFeedback = true;
-					System.out.println("BeginUpdata");
+				DataAnalysis(buf);
+			}
+		}	
+	}
+
+	//功能：数据解析，存储相应的数据库对应位置
+	private static void DataAnalysis(byte[] buf){
+		//解析数据0x01
+		if(buf[0] == (byte)0x01){
+			switch(buf[1]) {
+				//开始升级指令
+				case (byte)0xAE:{
+					System.out.println("beginUpdate");
+					break;
 				}
-				//结束升级指令->(网页发送结束数据转发恢复)
-				else if(buf[1] == (byte)0xAF) {
-					flagAllDatFeedback = false;
-					System.out.println("EndUpdata");
+				//结束升级指令
+				case (byte)0xAF:{
+					System.out.println("StopUpdate");
+					break;
 				}
-				//心跳包 存储温湿度值到数据库
-				else if(buf[1] == (byte)0x0B) {
+				//接收心跳包指令
+				case (byte)0x0B:{
 					MySqlServer sqlServer = new MySqlServer();
 					int tem = ((buf[2] & 0xFF) << 8 | (buf[3] & 0xFF));
 					int hum = ((buf[4] & 0xFF) << 8 | (buf[5] & 0xFF));
@@ -185,15 +164,77 @@ public class MyServerSocket {
 										+ tem + "','" + hum + "','" + simpleDateFormate.format(date) + "');";
 
 					sqlServer.executeUpdate(sql);
-					sqlServer.closeConnection();		//断开数据库连接		
+					sqlServer.closeConnection();		//断开数据库连接	
+					break;
 				}
-				//如果校验正确，直接进行转发
-				ret = buf;
-			}
-		}	
-		return ret;
+				//接收到灯开的状态
+				case (byte)0x03:{
+					MySqlServer sqlServer = new MySqlServer();
+					String sql = "";
+					if(buf[2] == (byte)0xAA){
+						sql = "update controller_tbl set status='open' where id='light';";
+					}
+					else if(buf[2] == (byte)0xBB){
+						sql = "update controller_tbl set status='close' where id='light';";
+					}					
+					sqlServer.executeUpdate(sql);
+					sqlServer.closeConnection();		//断开数据库连接						
+					break;
+				}
+				//反馈锁的状态
+				case (byte)0x04:{
+					MySqlServer sqlServer = new MySqlServer();
+					String sql = "";
+					if(buf[2] == (byte)0xAA){
+						sql = "update controller_tbl set status='open' where id='lock';";
+					}
+					else if(buf[2] == (byte)0xBB){
+						sql = "update controller_tbl set status='close' where id='lock';";
+					}					
+					sqlServer.executeUpdate(sql);
+					sqlServer.closeConnection();		//断开数据库连接						
+					break;					
+				}
+				//反馈风扇的状态
+				case (byte)0x56:{
+					MySqlServer sqlServer = new MySqlServer();
+					String sql = "";
+					if(buf[2] == (byte)0xAA){
+						sql = "update controller_tbl set status='open' where id='fan';";
+					}
+					else if(buf[2] == (byte)0xBB){
+						sql = "update controller_tbl set status='close' where id='fan';";
+					}					
+					sqlServer.executeUpdate(sql);
+					sqlServer.closeConnection();		//断开数据库连接					
+					break;
+				}
+				//接收到LED显示信息
+				case (byte)0x07:{
+					MySqlServer sqlServer = new MySqlServer();
+					String sql = "update controller_tbl set status='success' where id='msg';";				
+					sqlServer.executeUpdate(sql);
+					sqlServer.closeConnection();		//断开数据库连接									
+					break;
+				}
+				//重启底层板子成功
+				case (byte)0x0E:{
+					MySqlServer sqlServer = new MySqlServer();
+					String sql = "update controller_tbl set status='success' where id='reboot';";				
+					sqlServer.executeUpdate(sql);
+					sqlServer.closeConnection();		//断开数据库连接					
+					break;
+				}
+				default:{
+					System.out.println("接收命令unknow");
+					break;
+				}
+			
+			}		
+		}				
 	}
-
+	
+	
 	//数据转发
 	private static void RetSocketDat(Socket mySocket, byte[] buf, int len) throws IOException {
 		

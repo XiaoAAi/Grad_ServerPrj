@@ -13,8 +13,8 @@ public class MySqlServer {
 	static java.sql.Connection conn;
     private final String dbDrive="com.mysql.jdbc.Driver";
 //    private final String url = "jdbc:mysql://127.0.0.1:3306/GRA_DATA";			//应该也是可以的
-    private final String url = "jdbc:mysql://120.78.79.152:3306/GRA_DATA";
-//    private final String url = "jdbc:mysql://localhost:3306/GRA_DATA";			//同样是可以的
+//    private final String url = "jdbc:mysql://localhost:3306/GRA_DATA";
+    private final String url = "jdbc:mysql://120.78.79.152:3306/GRA_DATA";			//同样是可以的
     private final String userName = "root";
     private final String password = "123";
     private Connection con = null;
