@@ -125,7 +125,7 @@ public class MyServerSocket {
 	}
 	
 	//判断校验是否正确
-	private static void ColData(byte[] buf, int len) throws NullPointerException{ 
+	private static void ColData(byte[] buf, int len) throws NullPointerException, IOException{ 
 		if(buf[len - 1] == (byte)0xEE && buf[len - 2] == (byte)0xDD) {
 			int ncrc = MyCRC16.ModBusCRC16(buf, len - 4);	
 			//CRC校验比较
@@ -137,7 +137,7 @@ public class MyServerSocket {
 	}
 
 	//功能：数据解析，存储相应的数据库对应位置
-	private static void DataAnalysis(byte[] buf){
+	private static void DataAnalysis(byte[] buf) throws IOException{
 		//解析数据0x01
 		if(buf[0] == (byte)0x01){
 			switch(buf[1]) {
@@ -161,8 +161,8 @@ public class MyServerSocket {
 					DateFormat simpleDateFormate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 					
 					String sql = "INSERT INTO temhum_tbl (temhum_tem,temhum_hum,submit_date) VALUES ('" 
-										+ tem + "','" + hum + "','" + simpleDateFormate.format(date) + "');";
-
+										+ (float)tem / 10.0 + "','" + (float)hum / 10.0 + "','" + simpleDateFormate.format(date) + "');";
+//					System.out.println((float)tem / 10.0 + "','" + (float)hum / 10.0);
 					sqlServer.executeUpdate(sql);
 					sqlServer.closeConnection();		//断开数据库连接	
 					break;
@@ -225,6 +225,29 @@ public class MyServerSocket {
 					sqlServer.closeConnection();		//断开数据库连接					
 					break;
 				}
+				//获取实时时钟
+				case (byte)0x00:{
+					java.util.Date t = new java.util.Date();
+//					SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+					SimpleDateFormat df = new SimpleDateFormat("yyyyMMddHHmm");
+//					System.out.println(df.format(t));
+					byte[] dateByte = df.format(t).getBytes();
+					byte[] cmdlenByt = {0x01, 0x00};
+					dateByte = ByteUtils.byteMerger(cmdlenByt, dateByte);
+					cmdlenByt[0] = 0x00;
+					cmdlenByt[1] = 0x0E;
+					dateByte = ByteUtils.byteMerger(dateByte, cmdlenByt);
+					byte[] endByt = {0x00, 0x00, (byte)0xDD, (byte)0xEE};
+					int ncrc = MyCRC16.ModBusCRC16(dateByte, dateByte.length);
+					endByt[0] = (byte)((ncrc >> 8) & 0xFF);
+					endByt[1] = (byte)(ncrc & 0xFF);					
+					dateByte = ByteUtils.byteMerger(dateByte, endByt);
+//					for(int i= 0; i < dateByte.length; i++) {
+//						System.out.printf("%X\n", dateByte[i]);
+//					}
+					RetSocketDat(dateByte, dateByte.length);
+					break;
+				}
 				default:{
 					System.out.println("接收命令unknow");
 					break;
@@ -237,9 +260,10 @@ public class MyServerSocket {
 	//处理前端发送给数据库的字符串命令
 	public static void HtmlStringAnalysis() throws InterruptedException, IOException {
 		while(true){
-			Thread.sleep(2000);
+			Thread.sleep(2500);
 			SelectAndUpdateMysqlDate();
-			System.out.println("SelectMysqlOpreation");
+			Thread.sleep(2500);
+			//System.out.println("SelectMysqlOpreation");
 		}
 	}
 
