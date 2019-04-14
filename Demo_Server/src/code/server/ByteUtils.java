@@ -1,5 +1,9 @@
 package code.server;
 
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
+
 public class ByteUtils {
     //16进制转字节数组
     public static byte[] hexStringToByteArray(String s) {
@@ -49,9 +53,7 @@ public class ByteUtils {
     		
     		sb.append(bs);
     		
-    	}
-    	
-    	
+    	}    	
     	return sb.toString();
     }
 
@@ -62,13 +64,6 @@ public class ByteUtils {
         for (int i = 0; i < b.length; i++) {
             a = a ^ Integer.parseInt(b[i], 16);
         }
-       /* if(a<10){
-            *//*StringBuffer sb = new StringBuffer();
-            sb.append("0");
-            sb.append(a);
-            return sb.toString();*//*
-            return "0"+a;
-        }*/
 
         String result=Integer.toHexString(a).toUpperCase();
         if (result.length()==1){
@@ -94,6 +89,7 @@ public class ByteUtils {
         }
         return  hex;
     }
+    
     //将0~15的十进制数转换成0~F的十六进制数
     public static char toHexChar(int hexValue) {
         if(hexValue <= 9 && hexValue >= 0)
@@ -148,9 +144,6 @@ public class ByteUtils {
         System.arraycopy(byte_2, 0, byte_3, byte_1.length, byte_2.length);
         return byte_3;
     }
-
-
-
     /**
      * 4位字节数组转换为整型
      * @param b
@@ -169,8 +162,24 @@ public class ByteUtils {
         System.arraycopy(src, begin, bs, 0, count);
         return bs;
     }
-    
-
+    //char类型转byte数组类型
+    public static byte[] getBytes(char[] chars) {
+        Charset cs = Charset.forName("UTF-8");
+        CharBuffer cb = CharBuffer.allocate(chars.length);
+        cb.put(chars);
+        cb.flip();
+        ByteBuffer bb = cs.encode(cb);
+        return bb.array();
+    }
+    //byte类型转char数组类型
+    public static char[] getChars(byte[] bytes) {
+        Charset cs = Charset.forName("UTF-8");
+        ByteBuffer bb = ByteBuffer.allocate(bytes.length);
+        bb.put(bytes);
+        bb.flip();
+        CharBuffer cb = cs.decode(bb);
+        return cb.array();
+    }
 
 
 }

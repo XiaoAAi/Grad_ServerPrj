@@ -141,21 +141,11 @@ public class MyServerSocket {
 		//解析数据0x01
 		if(buf[0] == (byte)0x01){
 			switch(buf[1]) {
-				//开始升级指令
-				case (byte)0xAE:{
-					System.out.println("beginUpdate");
-					break;
-				}
-				//结束升级指令
-				case (byte)0xAF:{
-					System.out.println("StopUpdate");
-					break;
-				}
 				//接收心跳包指令
 				case (byte)0x0B:{
 					MySqlServer sqlServer = new MySqlServer();
-					int tem = ((buf[2] & 0xFF) << 8 | (buf[3] & 0xFF));
-					int hum = ((buf[4] & 0xFF) << 8 | (buf[5] & 0xFF));
+					int hum = ((buf[2] & 0xFF) << 8 | (buf[3] & 0xFF));
+					int tem = ((buf[4] & 0xFF) << 8 | (buf[5] & 0xFF));
 					long lt = System.currentTimeMillis();
 					Date date = new Date(lt);
 					DateFormat simpleDateFormate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -248,6 +238,30 @@ public class MyServerSocket {
 					RetSocketDat(dateByte, dateByte.length);
 					break;
 				}
+				//接收到反馈将要升级
+				case (byte)0xBD:{
+					byte[] cmd = {0x01, (byte)0xAE, 0x00, 0x02, (byte)0xF1, (byte)0xFB, (byte)0xDD, (byte)0xEE};
+					//发送开始升级
+					RetSocketDat(cmd, 8);				
+					break;
+				}
+				//接收到开始升级反馈
+				case (byte)0xBE:{
+					//发送升级byte文件
+					updateRealease.ReadUpdateFile();
+					//发送升级数据
+					System.out.println("SendUpdateData");
+					break;
+				}
+				//接收到结束升级反馈
+				case (byte)0xBF:{	
+					MySqlServer sqlServer = new MySqlServer();	
+					String sql = "update controller_tbl set status='success' where id='update';";				
+					sqlServer.executeUpdate(sql);		
+					sqlServer.closeConnection();			//断开数据库连接
+					
+					break;
+				}
 				default:{
 					System.out.println("接收命令unknow");
 					break;
@@ -257,12 +271,14 @@ public class MyServerSocket {
 		}				
 	}
 
-	//处理前端发送给数据库的字符串命令
+	//处理前端发送给数据库的字符串命令  + 晚上23:59:59清空temhum_tbl表
 	public static void HtmlStringAnalysis() throws InterruptedException, IOException {
 		while(true){
-			Thread.sleep(2500);
+			Thread.sleep(1500);
 			SelectAndUpdateMysqlDate();
-			Thread.sleep(2500);
+			//晚上23:59:59清空temhum_tbl表
+			Cleartemhum_tbl();
+			Thread.sleep(1500);
 			//System.out.println("SelectMysqlOpreation");
 		}
 	}
@@ -274,6 +290,7 @@ public class MyServerSocket {
 		FanCmd();
 		SendMsgOled();
 		RebootBottom();
+		UpdateBottom();
 	}
 	
 	//灯的发送指令
@@ -388,11 +405,42 @@ public class MyServerSocket {
 
 		sqlServer.closeConnection();		//断开数据库连接			
 	}
+	
+	//发送将要升级底层指令
+	private static void UpdateBottom() throws IOException{
+		MySqlServer sqlServer = new MySqlServer();
+		//发送底层重启指令
+		String sql = "select command from controller_tbl where id='update';";
+		String strCmp = sqlServer.executeStringQuery(sql);
+		if(strCmp.equals("updatebottom")) {
+			byte buf[] = {0x01, (byte)0xAD, 0x00, 0x02, (byte)0x11, (byte)0xF8, (byte)0xDD, (byte)0xEE};
+			RetSocketDat(buf, 8);
+			System.out.println("发送将要底层升级");
+		}
+		sql = "update controller_tbl set command='' where id='update';";				
+		sqlServer.executeUpdate(sql);		
 
+		sqlServer.closeConnection();		//断开数据库连接		
+	}
 
+	//晚上00:00:00清空temhum_tbl数据表中所有内容
+	private static void Cleartemhum_tbl() {
+		java.util.Date t = new java.util.Date();
+		SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss");
+//		System.out.println(df.format(t));
+		if(df.format(t).equals("23:59:59") || df.format(t).equals("23:59:58") || df.format(t).equals("23:59:57")) {
+			MySqlServer sqlServer = new MySqlServer();
+			String sql = "delete from temhum_tbl;";
+			sqlServer.executeUpdate(sql);
+			sqlServer.closeConnection();					//断开数据库连接	
+			System.out.println("delete temhumData Successful\r\n");
+		}
+		
+	}
+	
 	
 	//数据转发
-	private static void RetSocketDat( byte[] buf, int len) throws IOException {
+	public static void RetSocketDat( byte[] buf, int len) throws IOException {
 		
     	for(Socket socket : mySocketList) {
 			socket.getOutputStream().write(buf, 0, len);
