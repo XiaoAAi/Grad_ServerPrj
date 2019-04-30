@@ -249,6 +249,9 @@ public class MyServerSocket {
 				case (byte)0xBE:{
 					//发送升级byte文件
 					updateRealease.ReadUpdateFile();
+					byte[] cmd = {0x01, (byte)0xAF, 0x00, 0x02, (byte)0xB0, (byte)0x38, (byte)0xDD, (byte)0xEE};
+					//发送结束升级指令
+					RetSocketDat(cmd, 8);	
 					//发送升级数据
 					System.out.println("SendUpdateData");
 					break;
@@ -271,12 +274,12 @@ public class MyServerSocket {
 		}				
 	}
 
-	//处理前端发送给数据库的字符串命令  + 晚上23:59:59清空temhum_tbl表
+	//处理前端发送给数据库的字符串命令  + 晚上23:00:00清空temhum_tbl表
 	public static void HtmlStringAnalysis() throws InterruptedException, IOException {
 		while(true){
 			Thread.sleep(1500);
 			SelectAndUpdateMysqlDate();
-			//晚上23:59:59清空temhum_tbl表
+			//晚上23:00:00清空temhum_tbl表
 			Cleartemhum_tbl();
 			Thread.sleep(1500);
 			//System.out.println("SelectMysqlOpreation");
@@ -423,12 +426,13 @@ public class MyServerSocket {
 		sqlServer.closeConnection();		//断开数据库连接		
 	}
 
-	//晚上00:00:00清空temhum_tbl数据表中所有内容
+	//晚上23:00:00清空temhum_tbl数据表中所有内容
 	private static void Cleartemhum_tbl() {
 		java.util.Date t = new java.util.Date();
 		SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss");
+		String str = df.format(t);
 //		System.out.println(df.format(t));
-		if(df.format(t).equals("23:59:59") || df.format(t).equals("23:59:58") || df.format(t).equals("23:59:57")) {
+		if(str.equals("23:00:00") || str.equals("23:00:01") || str.equals("23:00:02")) {
 			MySqlServer sqlServer = new MySqlServer();
 			String sql = "delete from temhum_tbl;";
 			sqlServer.executeUpdate(sql);

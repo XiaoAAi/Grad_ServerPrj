@@ -9,7 +9,7 @@ public class updateRealease {
 
 	public static boolean ReadUpdateFile(){
 		
-		File updateFile = new File("../updateBottom/realease");
+		File updateFile = new File("/home/Server/updateBottom/realease.bin");
 		
 		char[] charBuf = new char[20000];
 		
@@ -18,8 +18,10 @@ public class updateRealease {
 			
             while((rd.read(charBuf)) != -1){				//read读取一个char类型
                byte[] buf = ByteUtils.getBytes(charBuf);
-               //转发升级数据byte类型
+//               //转发升级数据byte类型
                MyServerSocket.RetSocketDat(buf, buf.length);
+//               String ret = ByteUtils.ByteArraytoHex(buf, buf.length);
+//               System.out.println("UpdateFiles " + ret);
             }
             rd.close(); 			
 		} catch (FileNotFoundException ex) {
