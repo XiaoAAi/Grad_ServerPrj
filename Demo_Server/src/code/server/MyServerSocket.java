@@ -240,7 +240,13 @@ public class MyServerSocket {
 				}
 				//接收到反馈将要升级
 				case (byte)0xBD:{
-					byte[] cmd = {0x01, (byte)0xAE, 0x00, 0x02, (byte)0xF1, (byte)0xFB, (byte)0xDD, (byte)0xEE};
+					try {
+						Thread.sleep(3000);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					byte[] cmd = {0x01, (byte)0xAE, 0x00, 0x02, (byte)0xE1, (byte)0xF8, (byte)0xDD, (byte)0xEE};
 					//发送开始升级
 					RetSocketDat(cmd, 8);				
 					break;
